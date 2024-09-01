@@ -1,60 +1,86 @@
-import createClient from 'redis';
+import redis from 'redis';
+import { promisify } from 'util';
 
 class RedisClient {
   constructor() {
-    this.client = createClient();
-
-    this.client.on('error', (error) => {
-      console.error(`Redis client not connected to the server: ${error.message}`);
+    this.client = redis.createClient({
+      host: process.env.DB_HOST || 'localhost',
+      port: process.env.DB_PORT || 6379, // Default Redis port
     });
+    this.asyncGet = promisify(this.client.get).bind(this.client);
+    this.asyncSetex = promisify(this.client.setex).bind(this.client);
+    this.asyncDel = promisify(this.client.del).bind(this.client);
+    this.asyncQuit = promisify(this.client.quit).bind(this.client);
 
-    this.client.on('connect', () => {
-      console.log('Redis client connected to the server');
-    });
-
-    this.client.connect().catch((error) => {
-      console.error(`Error connecting to Redis server: ${error.message}`);
+    this.client.on('error', (err) => {
+      console.log('Redis client not connected to the server:', err.message);
     });
   }
 
+  /**
+  * Checks if the Redis client is alive.
+  * @returns {boolean} True if the client is alive, false otherwise.
+  */
   isAlive() {
-    return this.client.connected && this.client.Ready; // Check if client is ready
+    return this.client.connected && this.client.ready;
   }
 
+  /**
+  * Gets the value associated with the specified key from the Redis server.
+  * @param {string} key - The key to get the value for.
+  * @returns {Promise<string>} A promise that resolves to the value associated with
+  * the specified key, or null if the key does not exist.
+  */
   async get(key) {
     try {
-      const value = await this.client.get(key); // Use async/await directly
+      const value = await this.asyncGet(key);
       return value;
     } catch (error) {
-      console.error(`Error getting key ${key}: ${error.message}`);
+      console.error('Error in get method', error.message);
       throw error;
     }
   }
 
+  /**
+  * Sets the value associated with the specified key in the Redis server.
+  * @param {string} key - The key to set the value for.
+  * @param {string} value - The value to set.
+  * @param {number} duration - The duration in seconds for which the key should exist.
+  */
   async set(key, value, duration) {
     try {
-      await this.client.setEx(key, duration, value);
+      const setValue = await this.asyncSetex(key, duration, value);
+      return setValue;
     } catch (error) {
-      console.error(`Error setting key ${key}: ${error.message}`);
+      console.error('Error in set method', error.message);
       throw error;
     }
   }
 
+  /**
+  * Deletes the value associated with the specified key from the Redis server.
+  * @param {string} key - The key to delete the value for.
+  * @returns {Promise<void>} A promise that resolves when the value has been deleted.
+  */
   async del(key) {
     try {
-      await this.client.del(key);
+      await this.asyncDel(key);
     } catch (error) {
-      console.error(`Error deleting key ${key}: ${error.message}`);
+      console.error('Error in del method', error.message);
       throw error;
     }
   }
 
-  async quit() {
+  /**
+  * Closes the connection to the Redis server.
+  * @returns {Promise<void>} A promise that resolves when connection has been closed.
+  */
+  async close() {
     try {
-      await this.client.quit();
-      console.log('Redis client connection closed');
+      await this.asyncQuit();
     } catch (error) {
-      console.error(`Error closing Redis client connection: ${error.message}`);
+      console.error('Error with close method', error.message);
+      throw error;
     }
   }
 }
