@@ -4,7 +4,7 @@ import { promisify } from 'util';
 class RedisClient {
   constructor() {
     this.client = redis.createClient({
-      host: process.env.DB_HOST || 'localhost',
+      host: process.env.DB_HOST || '127.0.0.1',
       port: process.env.DB_PORT || 6379, // Default Redis port
     });
     this.asyncGet = promisify(this.client.get).bind(this.client);
