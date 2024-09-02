@@ -22,7 +22,7 @@ class RedisClient {
   * @returns {boolean} True if the client is alive, false otherwise.
   */
   isAlive() {
-    return this.client.connected && this.client.ready;
+    return this.client.connected;
   }
 
   /**
