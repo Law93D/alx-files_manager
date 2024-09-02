@@ -26,7 +26,7 @@ class DBClient {
 
   // Updated isAlive method to check the connection state using topology
   isAlive() {
-    return this.client.topology.isConnected();
+    return this.client.isConnected();
   }
 
   // Asynchronous method to count users in the database
