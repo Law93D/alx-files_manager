@@ -2,6 +2,7 @@ import { ObjectId } from 'mongodb';
 import redisClient from '../redisClient';
 import DBCrud from '../DBCrud';
 import { saveFileLocally, pathToBeReturned } from '../saveFileLocally';
+import dbClient from '../dbClient';
 
 class FilesController {
   static async postUpload(req, res) {
@@ -101,6 +102,185 @@ class FilesController {
       console.error('Error in postUpload request: ', error.message);
       return res.status(500).json({ error: 'Internal Server Error' });
     }
+  }
+
+  static async getShow(req, res) {
+    const token = req.headers['x-token'];
+    const redisKey = `auth_${token}`;
+    const userId = await redisClient.get(redisKey);
+
+    if (!userId) {
+      return res.status(401).json({ error: 'Unauthorized' });
+    }
+
+    const fileId = req.params.id;
+    const file = await dbClient.db.collection('files').findOne({
+      _id: new ObjectId(fileId),
+      userId: new ObjectId(userId),
+    });
+
+    if (!file) {
+      return res.status(404).json({ error: 'Not found' });
+    }
+
+    return res.json({
+      id: file._id.toString(),
+      userId: file.userId.toString(),
+      name: file.name,
+      type: file.type,
+      isPublic: file.isPublic,
+      parentId: file.parentId,
+    });
+  }
+
+  static async getIndex(req, res) {
+    const token = req.headers['x-token'];
+    const redisKey = `auth_${token}`;
+    const userId = await redisClient.get(redisKey);
+
+    if (!userId) {
+      return res.status(401).json({ error: 'Unauthorized' });
+    }
+
+    const parentId = req.query.parentId || '0';
+    const page = parseInt(req.query.page, 10) || 0;
+    const pageSize = 20;
+
+    const files = await dbClient.db.collection('files')
+      .aggregate([
+        {
+          $match: {
+            userId: new ObjectId(userId),
+            parentId: parentId === '0' ? 0 : new ObjectId(parentId),
+          },
+        },
+        {
+          $skip: page * pageSize,
+        },
+        {
+          $limit: pageSize,
+        },
+      ])
+      .toArray();
+
+    const formattedFiles = files.map((file) => ({
+      id: file._id.toString(),
+      userId: file.userId.toString(),
+      name: file.name,
+      type: file.type,
+      isPublic: file.isPublic,
+      parentId: file.parentId,
+    }));
+
+    return res.json(formattedFiles);
+  }
+	
+static async putPublish(req, res) {
+  try {
+    const token = req.header('x-token');
+    const userId = await redisClient.get(`auth_${token}`);
+
+    if (!userId) {
+      return res.status(401).json({ error: 'Unauthorized' });
+    }
+
+    const fileId = req.params.id;
+    const file = await DBCrud.findFile({
+      _id: new ObjectId(fileId),
+      userId: new ObjectId(userId),
+    });
+
+    if (!file) {
+      return res.status(404).json({ error: 'Not found' });
+    }
+
+    await DBCrud.updateFile(file._id, { isPublic: true });
+
+    return res.status(200).json({
+      id: file._id.toString(),
+      userId: file.userId.toString(),
+      name: file.name,
+      type: file.type,
+      isPublic: true,
+      parentId: file.parentId,
+    });
+  } catch (error) {
+    console.error('Error in putPublish request:', error.message);
+    return res.status(500).json({ error: 'Internal Server Error' });
+  }
+}
+
+// Task 7: Unpublish a file
+static async putUnpublish(req, res) {
+  try {
+    const token = req.header('x-token');
+    const userId = await redisClient.get(`auth_${token}`);
+
+    if (!userId) {
+      return res.status(401).json({ error: 'Unauthorized' });
+    }
+
+    const fileId = req.params.id;
+    const file = await DBCrud.findFile({
+      _id: new ObjectId(fileId),
+      userId: new ObjectId(userId),
+    });
+
+    if (!file) {
+      return res.status(404).json({ error: 'Not found' });
+    }
+
+    await DBCrud.updateFile(file._id, { isPublic: false });
+
+    return res.status(200).json({
+      id: file._id.toString(),
+      userId: file.userId.toString(),
+      name: file.name,
+      type: file.type,
+      isPublic: false,
+      parentId: file.parentId,
+    });
+  } catch (error) {
+    console.error('Error in putUnpublish request:', error.message);
+    return res.status(500).json({ error: 'Internal Server Error' });
+  }
+}
+
+// Task 8: Fetch file data
+static async getFile(req, res) {
+  try {
+    const token = req.header('x-token');
+    const userId = await redisClient.get(`auth_${token}`);
+
+    if (!userId) {
+      return res.status(401).json({ error: 'Unauthorized' });
+    }
+
+    const fileId = req.params.id;
+    const file = await DBCrud.findFile({
+      _id: new ObjectId(fileId),
+      userId: new ObjectId(userId),
+    });
+
+    if (!file) {
+      return res.status(404).json({ error: 'Not found' });
+    }
+
+    if (!file.isPublic && file.userId.toString() !== userId) {
+      return res.status(403).json({ error: 'Forbidden' });
+    }
+
+    return res.status(200).json({
+      id: file._id.toString(),
+      userId: file.userId.toString(),
+      name: file.name,
+      type: file.type,
+      isPublic: file.isPublic,
+      parentId: file.parentId,
+    });
+  } catch (error) {
+    console.error('Error in getFile request:', error.message);
+    return res.status(500).json({ error: 'Internal Server Error' });
   }
 }
 
