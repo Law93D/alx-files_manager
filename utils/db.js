@@ -2,43 +2,46 @@ import { MongoClient } from 'mongodb';
 
 class DBClient {
   constructor() {
-    const host = process.env.DB_HOST || 'localhost';
-    const port = process.env.DB_PORT || 27017;
-    const database = process.env.DB_DATABASE || 'files_manager';
-    const url = `mongodb://${host}:${port}`;
+    this.url = `mongodb://${process.env.DB_HOST || 'localhost'}:${process.env.DB_PORT || 27017}`;
+    this.dbName = process.env.DB_DATABASE || 'files_manager';
+    this.client = new MongoClient(this.url, { useNewUrlParser: true, useUnifiedTopology: true });
 
-    // Updated connection string to use the constructed URL variable
-    this.client = new MongoClient(url, {
-      useNewUrlParser: true,
-      useUnifiedTopology: true,
-    });
-
-    // Improved error handling with async/await and try/catch
-    this.client.connect()
-      .then(() => {
-        this.db = this.client.db(database);
-        console.log('MongoDB client connected to the server');
-      })
-      .catch((err) => {
-        console.error(`MongoDB client not connected to the server: ${err.message}`);
-      });
+    this.connect();
   }
 
-  // Updated isAlive method to check the connection state using topology
+  async connect() {
+    try {
+      await this.client.connect();
+      console.log('Connected to MongoDB');
+    } catch (err) {
+      console.error('MongoDB connection error:', err);
+    }
+  }
+
   isAlive() {
-    return this.client.isConnected();
+    return this.client.topology.isConnected();
   }
 
-  // Asynchronous method to count users in the database
   async nbUsers() {
-    if (!this.isAlive()) return 0; // Check if connection is alive before querying
-    return this.db.collection('users').countDocuments();
+    try {
+      const db = this.client.db(this.dbName);
+      const usersCollection = db.collection('users');
+      return await usersCollection.countDocuments();
+    } catch (err) {
+      console.error('Error counting users:', err);
+      throw err;
+    }
   }
 
-  // Asynchronous method to count files in the database
   async nbFiles() {
-    if (!this.isAlive()) return 0; // check is conn is alive before querying
-    return this.db.collection('files').countDocuments();
+    try {
+      const db = this.client.db(this.dbName);
+      const filesCollection = db.collection('files');
+      return await filesCollection.countDocuments();
+    } catch (err) {
+      console.error('Error counting files:', err);
+      throw err;
+    }
   }
 }
 
