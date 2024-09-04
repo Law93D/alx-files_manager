@@ -294,5 +294,36 @@ const fileQueue = new Queue('fileQueue', {
   }
 });
 
+// controllers/FilesController.js
+static async getFile(req, res) {
+  try {
+    const token = req.header('x-token');
+    const userId = await redisClient.get(`auth_${token}`);
+    if (!userId) return res.status(401).json({ error: 'Unauthorized' });
+
+    const fileId = req.params.id;
+    const size = req.query.size;
+    const file = await DBCrud.findFile({ _id: fileId, userId });
+
+    if (!file) return res.status(404).json({ error: 'Not found' });
+
+    let filePath = file.path;
+
+    if (size) {
+      const validSizes = ['100', '250', '500'];
+      if (!validSizes.includes(size)) return res.status(400).json({ error: 'Invalid size' });
+
+      filePath = `${filePath}_${size}`;
+    }
+
+    if (!fs.existsSync(filePath)) return res.status(404).json({ error: 'Not found' });
+
+    res.sendFile(filePath);
+  } catch (error) {
+    console.error('Error in getFile request:', error.message);
+    return res.status(500).json({ error: 'Internal Server Error' });
+  }
+}
+
 module.exports = fileQueue;
 export default FilesController;
