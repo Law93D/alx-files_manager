@@ -284,4 +284,15 @@ static async getFile(req, res) {
   }
 }
 
+const path = require('path');
+const { fileStoragePath } = require('../config');
+
+const fileQueue = new Queue('fileQueue', {
+  redis: {
+    host: 'localhost',
+    port: 6379
+  }
+});
+
+module.exports = fileQueue;
 export default FilesController;
