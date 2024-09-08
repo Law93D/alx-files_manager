@@ -1,8 +1,8 @@
 import express from 'express';
-import mapRoutes from './routes/index';
 
 const app = express();
 const PORT = process.env.PORT || 5000;
+const mapRoutes = require('./routes/index');
 
 // Load routes from routes/index.js
 mapRoutes(app);
