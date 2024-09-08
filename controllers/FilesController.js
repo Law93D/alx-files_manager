@@ -295,7 +295,7 @@ const fileQueue = new Queue('fileQueue', {
 });
 
 // controllers/FilesController.js
-static async getFile(req, res) {
+static async getFile(req, res) ;
   try {
     const token = req.header('x-token');
     const userId = await redisClient.get(`auth_${token}`);

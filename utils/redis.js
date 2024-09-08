@@ -8,7 +8,7 @@ class RedisClient {
   constructor() {
     this.client = redis.createClient();
     this.getAsync = promisify(this.client.get).bind(this.client);
-    this.setexAsync = promisify(this.client.setex).bind(this.client);
+    this.setAsync = promisify(this.client.set).bind(this.client);
     this.delAsync = promisify(this.client.del).bind(this.client);
 
     // Handle Redis connection errors
@@ -54,7 +54,7 @@ class RedisClient {
    */
   async set(key, value, duration) {
     try {
-      await this.setexAsync(key, duration, value);
+      await this.setAsync(key, duration, value);
     } catch (error) {
       console.error(`Error setting key "${key}": ${error.message}`);
     }
